@@ -197,11 +197,11 @@ crontab -l | grep av-auto
 ### Formati di Report
 
 #### Report Testuale
-- **Posizione**: `/var/log/ms-av/report-scansione-YYYY-MM-DD_HH:MM:SS.log`
+- **Posizione**: `/var/log/av-logs/report-scansione-YYYY-MM-DD_HH:MM:SS.log`
 - **Contenuto**: Report completo in formato human-readable
 
 #### Report JSON
-- **Posizione**: `/var/log/ms-av/report-scansione-YYYY-MM-DD_HH:MM:SS.json`
+- **Posizione**: `/var/log/av-logs/report-scansione-YYYY-MM-DD_HH:MM:SS.json`
 - **Utilizzo**: Integrazione con sistemi esterni, dashboard, API
 
 ```json
@@ -237,7 +237,7 @@ crontab -l | grep av-auto
 ## 🛠️ Requisiti di Sistema
 
 ### Dipendenze Obbligatorie
-- **OS**: Linux (Ubuntu 18.04+, Debian 9+, CentOS 7+)
+- **OS**: Linux (Ubuntu 18.04+, Debian 9+, CentOS 7+, Arch)
 - **ClamAV**: Per database firme e strumenti di estrazione
 - **OpenSSL**: Per calcolo hash MD5/SHA256
 - **Curl**: Per download firme aggiuntive
