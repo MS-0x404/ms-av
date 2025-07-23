@@ -244,7 +244,6 @@ crontab -l | grep av-auto
 - **UUID Runtime**: Per generazione ID scansione
 
 ### Dipendenze Opzionali
-- **Zenity**: Per interfaccia grafica (GUI)
 - **Mailx**: Per invio report via email
 - **Notify-send**: Per notifiche desktop
 
@@ -324,7 +323,7 @@ Contribuzioni sono benvenute! Per contribuire:
 
 ## 📜 Changelog
 
-### v1.0.0 (2024-12-15)
+### v1.0.0 (2025-06-20)
 - **🎉 Release iniziale**
 - ✅ Scansione MD5 e SHA256
 - ✅ Integrazione ClamAV
