@@ -1,4 +1,4 @@
-# 🛡️ MS-AV - Antivirus Linux Completo
+# 🛡️ MS-AV - Antivirus Linux
 
 <div align="center">
 
