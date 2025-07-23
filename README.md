@@ -346,9 +346,9 @@ Contribuzioni sono benvenute! Per contribuire:
 
 **MagicSale!** - *Progetto finale Istituto InfoBasic*
 
-- 📧 Email: [magic.sale@proton.me](mailto:magic.sale@proton.me)
-- 🌐 GitHub: [@magicsale](https://github.com/magicsale)
-- 💼 LinkedIn: [MagicSale](https://linkedin.com/in/magicsale)
+- 📧 Email: [matteosalis04@ik.me](mailto:matteosalis04@ik.me)
+- 🌐 GitHub: [@magicsale](https://github.com/MS-0x404)
+- 💼 LinkedIn: [MagicSale](https://linkedin.com/in/matteosalis04)
 
 ---
 
