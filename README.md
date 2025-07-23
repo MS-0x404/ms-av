@@ -347,7 +347,7 @@ Contribuzioni sono benvenute! Per contribuire:
 **MagicSale!** - *Progetto finale Istituto InfoBasic*
 
 - 📧 Email: [matteosalis04@ik.me](mailto:matteosalis04@ik.me)
-- 🌐 GitHub: [@magicsale](https://github.com/MS-0x404)
+- 🌐 GitHub: [@MS-0X404](https://github.com/MS-0x404)
 - 💼 LinkedIn: [MagicSale](https://linkedin.com/in/matteosalis04)
 
 ---
@@ -378,8 +378,8 @@ di questo software per usarlo senza restrizioni...
 
 **⭐ Se MS-AV ti è stato utile, lascia una stella su GitHub! ⭐**
 
-[![GitHub stars](https://img.shields.io/github/stars/username/ms-av?style=social)](https://github.com/username/ms-av/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/username/ms-av?style=social)](https://github.com/username/ms-av/network)
+[![GitHub stars](https://img.shields.io/github/stars/MS-0X404/ms-av?style=social)](https://github.com/MS-0X404/ms-av/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/MS-0X404/ms-av?style=social)](https://github.com/MS-0X404/ms-av/network)
 
 ---
 
