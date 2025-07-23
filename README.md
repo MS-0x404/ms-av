@@ -135,10 +135,10 @@ sudo freshclam
 
 ```bash
 # Directory di quarantena
-DIRECTORY_QUARANTENA="/var/quarantine/ms-av"
+DIRECTORY_QUARANTENA="/quarantena"
 
 # Directory dei log
-PATH_LOG="/var/log/ms-av"
+PATH_LOG="/var/log/av-logs"
 
 # Percorsi database firme
 PATH_FIRME_MAIN="/etc/av-config/db_firme/main.hdb"
