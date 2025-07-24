@@ -356,7 +356,7 @@ Contribuzioni sono benvenute! Per contribuire:
 Questo progetto è distribuito sotto licenza **MIT**. Vedi il file [LICENSE](LICENSE) per maggiori dettagli.
 
 ```
-MIT License - Copyright (c) 2024 MagicSale!
+MIT License - Copyright (c) 2025 MagicSale!
 
 Permesso concesso gratuitamente a chiunque ottenga una copia
 di questo software per usarlo senza restrizioni...
