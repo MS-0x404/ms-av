@@ -131,7 +131,7 @@ sudo freshclam
 
 ## 🔧 Configurazione
 
-### File di Configurazione Principal (`/etc/av-config/av.conf`)
+### File di Configurazione Principale (`/etc/av-config/av.conf`)
 
 ```bash
 # Directory di quarantena
