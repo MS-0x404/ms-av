@@ -103,19 +103,19 @@ sudo ./installer.sh
 1. **Installa le dipendenze**:
 ```bash
 sudo apt update
-sudo apt install clamav clamav-daemon openssl curl uuid-runtime zenity
+sudo apt install clamav clamav-daemon openssl curl uuid-runtime
 ```
 
 2. **Crea le directory**:
 ```bash
 sudo mkdir -p /etc/av-config/db_firme
-sudo mkdir -p /var/log/ms-av
-sudo mkdir -p /var/quarantine/ms-av
+sudo mkdir -p /var/log/av-logs
+sudo mkdir -p /quarantena
 ```
 
 3. **Copia i file**:
 ```bash
-sudo cp ms-av.sh /usr/bin/ms-av
+sudo cp ms-av /usr/bin/ms-av
 sudo chmod +x /usr/bin/ms-av
 sudo cp config/av.conf /etc/av-config/
 ```
