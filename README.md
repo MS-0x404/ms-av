@@ -2,8 +2,7 @@
 
 <div align="center">
 
-![MS-AV Logo](<img width="1024" height="1024" alt="ChatGPT Image Jul 24, 2025, 08_05_48 AM" src="https://github.com/user-attachments/assets/b80cf0c1-e9b6-4438-9b03-a90fc103a550" />)
-
+![MS-AV Logo](https://img.shields.io/badge/MS--AV-v1.0-blue?style=for-the-badge&logo=linux)
 ![Platform](https://img.shields.io/badge/Platform-Linux-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)
