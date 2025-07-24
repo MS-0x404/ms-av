@@ -1,0 +1,673 @@
+#!/bin/bash 
+#############################################################
+# MS-AV
+# Autore: MagicSale!
+# Versione: 1.0 
+#############################################################
+
+## File di configurazione 
+source "/etc/av-config/av.conf"
+
+
+## Permessi Root
+if [[ $EUID != 0 ]]; then
+    echo "Please run as root!"
+    exit 1
+fi
+
+mkdir -p "$DIRECTORY_QUARANTENA" ## crea la cartella quarantena se non esiste gia
+mkdir -p "$PATH_LOG" ## crea la cartella log se non esiste già 
+hash_firme1=$(cat $PATH_FIRME_MAIN | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima 
+hash_firme2=$(cat $PATH_FIRME_DAILY | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+hash_firme3=$(cat $PATH_FIRME_SHA | awk '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+
+count=0
+file_tot=0
+timestamp=0
+path_home=""
+
+
+function euristica() {
+    local file="$1"
+    local filename="$(basename "$file" | tr '[:upper:]' '[:lower:]')"
+    if [[ $filename =~ (crack|keygen|trojan|backdoor|stealer|rat|ransom|logger|miner|suspicious|obfuscated|rootkit) ]]; then
+        ((count++))
+        [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA"
+        echo "=== ⚠️ Possibile Malware ==="
+        echo [WARN] $(basename "$file")
+        echo "============================"
+    fi
+}
+
+
+function scansione() {
+    i=0
+    spinner="/-\|"
+    read -p "Inserisci percorso da scansionare: " path_home 
+    if [[ -d $path_home ]]; then
+        echo "Avvio Scansione..."
+    else
+        echo "==="
+        echo "=== Errore: inserisci una directory ==="
+        echo "==="
+        exit 1
+    fi
+    all_files=($(find "$path_home" -type f))
+    time_start=$(date +%s)
+    total_files=${#all_files[@]}
+    for file in "${all_files[@]}"; do 
+        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *.$ext ]]; then
+                continue 2 
+            fi
+        done
+        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *"$path_escluso"* ]]; then
+                continue 2 
+            fi
+        done
+
+        ((file_tot++))
+        infetto=0
+
+        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') # Prende l'hash md5 del file controllato        
+        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
+        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme1"
+        while read -r line && [[ $infetto == 0 ]]; do
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme2"
+
+
+
+        if [[ $infetto == 0 ]]; then
+            euristica "$file"
+        fi
+
+
+        if [[ $infetto == 1 ]]; then
+            echo "\n"
+            echo "=== 🦠 Malware Rilevato ==="
+            echo ===[INFETTO] $(basename "$file") ===
+            echo "============================"
+        else 
+            printf "\r[%c] Scansione in corso..." "${spinner:i++%4:1}"
+            #echo [SICURO] "$file"
+        fi
+    done
+
+    time_end=$(date +%s)
+
+}
+
+function scansione_completa() {
+    i=0
+    spinner="/-\|"
+    path_tot="/"
+    all_files=($(find "$path_tot" -type f 2>/dev/null))
+    time_start=$(date +%s)
+    total_files=${#all_files[@]}
+    for file in "${all_files[@]}"; do 
+        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *.$ext ]]; then
+                continue 2 
+            fi
+        done
+        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *"$path_escluso"* ]]; then
+                continue 2 
+            fi
+        done
+
+        ((file_tot++))
+        infetto=0
+
+        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') # Prende l'hash md5 del file controllato
+        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
+        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme1"
+        while read -r line && [[ $infetto == 0 ]]; do
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme2"
+        while read -r line && [[ $infetto == 0 ]]; do
+            if [[ "$scan_sha" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme3"
+
+
+        if [[ $infetto == 0 ]]; then
+            euristica "$file"
+        fi
+
+
+        if [[ $infetto == 1 ]]; then
+            echo "\n"
+            echo "=== 🦠 Malware Rilevato ==="
+            echo ===[INFETTO] $(basename "$file") ===
+            echo "============================"
+        else 
+            printf "\r[%c] Scansione in corso..." "${spinner:i++%4:1}"
+            #echo [SICURO] "$file"
+        fi
+    done
+
+    time_end=$(date +%s)
+}
+
+function cronjob() {
+command_file="$1"
+cronjob="*/$FREQUENZA_SCANSIONE * * * * $command_file"
+(crontab -l 2>/dev/null | grep -F "$cronjob") >/dev/null
+
+if [ $? -ne 0 ]; then
+  (crontab -l 2>/dev/null; echo "$cronjob") | crontab -   # Aggiunge la riga al crontab
+  echo "[INFO] Cron job installato."
+else
+  echo "[INFO] Cron job già presente."
+fi
+}
+
+function auto() {
+script_auto="/usr/bin/av-auto"
+cat << "END" > $script_auto
+#!/bin/bash 
+
+source /etc/av-config/av.conf
+
+cronjob="*/$FREQUENZA_SCANSIONE * * * * av-auto"
+existing_crontab=$(crontab -l 2>/dev/null)
+
+if echo "$existing_crontab" | grep -q "av-auto"; then
+    if echo "$existing_crontab" | grep -Fq "$cronjob"; then
+        echo "[INFO] Cron job già presente."
+    else
+        echo "[INFO] Cron job trovato ma con frequenza diversa. Aggiorno..."
+        new_crontab=$(echo "$existing_crontab" | grep -v "av-auto")
+        echo "$new_crontab"$'\n'"$cronjob" | crontab -
+        echo "[INFO] Cron job aggiornato."
+    fi
+else
+    echo "$existing_crontab"$'\n'"$cronjob" | crontab -
+    echo "[INFO] Cron job aggiunto."
+fi
+
+
+mkdir -p "$DIRECTORY_QUARANTENA" ## crea la cartella quarantena se non esiste gia 
+mkdir -p "$PATH_LOG"
+all_files=($(find "/home/$UTENTE_ABILITATO_AL_DOWNLOAD" -type f)) 
+hash_firme1=$(cat $PATH_FIRME_MAIN | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima 
+hash_firme2=$(cat $PATH_FIRME_DAILY | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+hash_firme3=$(cat $PATH_FIRME_SHA | awk '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+
+sospetto=0
+count=0
+file_tot=0
+timestamp=0
+
+
+function update_signatures() {
+local dir_dest="/etc/av-config/db_firme"
+local clamav_db="/var/lib/clamav"
+local dir_tmp="/tmp/db_unpack"
+# Controlla se esistono
+mkdir -p "$dir_dest"
+mkdir -p "$dir_tmp"
+
+
+rm -f "$dir_dest/*.*"
+
+# aggiorna firme
+echo "Aggiornamento firme..."
+freshclam
+
+# pulisci la cartella temporanea
+rm -f "$dir_tmp/*.*"
+
+# estrai file cvd , cld
+for file in "$clamav_db/main.cvd" "$clamav_db/daily.cld"; do
+    echo "Estrazione di $file..."
+    cp "$file" "$dir_tmp/"
+    (cd "$dir_tmp" && sigtool --unpack "$file")
+done
+
+# copia i file nella destinazione
+cp "$dir_tmp"/*.{hdb,ndb,mdb} "$dir_dest/" 2>/dev/null
+
+curl -v https://bazaar.abuse.ch/export/txt/sha256/recent/ -o /etc/av-config/db_firme/firme_sha256.txt 2>/dev/null
+
+echo "==="
+echo "Aggiornamento completato in $dir_tmp: $(date)"
+echo "==="
+rm -rf "$dir_tmp"
+}
+
+function euristica() {
+    local file="$1"
+    local filename="$(basename "$file" | tr '[:upper:]' '[:lower:]')"
+    if [[ $filename =~ (crack|keygen|trojan|backdoor|stealer|rat|ransom|logger|miner|suspicious|obfuscated|rootkit) ]]; then
+        ((count++))
+        mv "$file" "$DIRECTORY_QUARANTENA"
+        echo "=== ⚠️ Possibile Malware ==="
+        echo [WARN] $(basename "$file")
+        echo "============================"
+    fi
+}
+
+
+function scansione() {
+    time_start=$(date +%s)
+    total_files=${#all_files[@]}
+    for file in "${all_files[@]}"; do 
+        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *.$ext ]]; then
+                continue 2 
+            fi
+        done
+        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
+            if [[ "$file" == *"$path_escluso"* ]]; then
+                continue 2 
+            fi
+        done
+
+        ((file_tot++))
+        infetto=0
+
+        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') 
+        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
+        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme1"
+        while read -r line && [[ $infetto == 0 ]]; do
+            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme2"
+        while read -r line && [[ $infetto == 0 ]]; do
+            if [[ "$scan_sha" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
+                ((count++))
+                infetto=1 
+                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
+                break
+            fi
+        done <<< "$hash_firme3"
+
+        if [[ $infetto == 0 ]]; then
+            euristica "$file"
+        fi
+
+
+    done
+
+    time_end=$(date +%s)
+
+}
+function report() {
+    timestamp=$(($time_end - $time_start))
+    date=$(date +%Y-%m-%d_%H:%M:%S)
+    log_file="$PATH_LOG/report-automatico-$date.log"
+    json_file="$PATH_LOG/report-automatico-$date.json"
+    hostname=$(hostnamectl --static)
+    user=$(whoami)
+    scan_id=$(uuidgen)
+    path_scan="/home/$UTENTE_ABILITATO_AL_DOWNLOAD"
+
+    echo -e "╔══════════════════════════════════════════════╗" | tee -a "$log_file"
+    echo -e "║            📋 REPORT SCANSIONE MS-AV          ║" | tee -a "$log_file"
+    echo -e "╚══════════════════════════════════════════════╝" | tee -a "$log_file"
+
+    echo -e " 📅 Data/Ora:$date" | tee -a "$log_file"
+    echo -e " 👤 Utente:$user" | tee -a "$log_file"
+    echo -e " 💻 Hostname:$hostname" | tee -a "$log_file"
+    echo -e " 📂 Path Scansionata:$path_scan" | tee -a "$log_file"
+    echo -e " 🕒 Durata Scansione:${timestamp}s" | tee -a "$log_file"
+    echo -e " 📄 File Scansionati:$file_tot" | tee -a "$log_file"
+    echo -e " 🆔 Scan ID:$scan_id" | tee -a "$log_file"
+    echo ""
+
+    if [[ $count -gt 0 ]]; then
+        echo -e " ⚠️ Malware Rilevati: $count" | tee -a "$log_file"
+        echo -e " 🛑 Stato Scansione : INFEZIONI TROVATE" | tee -a "$log_file"
+    else
+        echo -e " ✅ Nessun Malware Rilevato" | tee -a "$log_file"
+        echo -e " 🛡️ Stato Scansione : PULITO" | tee -a "$log_file"
+    fi
+
+    cat <<EOF > "$json_file"
+{
+  "timestamp": "$date",
+  "utente": "$user",
+  "hostname": "$hostname",
+  "scan_id": "$scan_id",
+  "path_scansionata": "$path_scan",
+  "durata_scansione": $timestamp,
+  "file_scansionati": $file_tot,
+  "malware_trovati": $count,
+  "scan_status": "$scan_status"
+}
+EOF
+    echo -e " 📁 JSON salvato in: $json_file" | tee -a "$log_file"
+
+    ##mailx -s "📋 REPORT SCANSIONE MS-AV - $date" -a $json_file $INVIO_MAIL
+
+}
+
+update_signatures
+scansione
+report
+END
+
+if [[ -f "$script_auto" ]]; then
+    echo "==="
+    chmod +x $script_auto
+    echo "== Servizio Automatico Creato! =="
+    echo "[INFO] Per modificare la frequenza della scansione, riavviare manualmente lo script: av-auto"
+    cronjob "av-auto"
+    echo "===" 
+else
+    echo "==="
+    echo "== Errore: Servizio Non Attivo =="
+    echo "==="
+fi
+
+
+
+}
+
+# =================================
+# ======= Sezione Report ==========
+# =================================
+function report() {
+    echo "\n"
+    notify-send "MS-AV Report" "Malware Trovati: $count"
+    timestamp=$(($time_end - $time_start))
+    date=$(date +%Y-%m-%d_%H:%M:%S)
+    log_file="$PATH_LOG/report-scansione-$date.log"
+    json_file="$PATH_LOG/report-scansione-$date.json"
+    hostname=$(hostnamectl --static)
+    user=$(whoami)
+    scan_id=$(uuidgen)
+
+    echo -e "╔══════════════════════════════════════════════╗" | tee -a "$log_file"
+    echo -e "║            📋 REPORT SCANSIONE MS-AV          ║" | tee -a "$log_file"
+    echo -e "╚══════════════════════════════════════════════╝" | tee -a "$log_file"
+
+    echo -e " 📅 Data/Ora:$date" | tee -a "$log_file"
+    echo -e " 👤 Utente:$user" | tee -a "$log_file"
+    echo -e " 💻 Hostname:$hostname" | tee -a "$log_file"
+    echo -e " 📂 Path Scansionata:$path_home" | tee -a "$log_file"
+    echo -e " 🕒 Durata Scansione:${timestamp}s" | tee -a "$log_file"
+    echo -e " 📄 File Scansionati:$file_tot" | tee -a "$log_file"
+    echo -e " 🆔 Scan ID:$scan_id" | tee -a "$log_file"
+    echo ""
+
+    if [[ $count -gt 0 ]]; then
+        echo -e " ⚠️ Malware Rilevati: $count" | tee -a "$log_file"
+        echo -e " 🛑 Stato Scansione : INFEZIONI TROVATE" | tee -a "$log_file"
+    else
+        echo -e " ✅ Nessun Malware Rilevato" | tee -a "$log_file"
+        echo -e " 🛡️ Stato Scansione : PULITO" | tee -a "$log_file"
+    fi
+
+    cat <<EOF > "$json_file"
+{
+  "timestamp": "$date",
+  "utente": "$user",
+  "hostname": "$hostname",
+  "scan_id": "$scan_id",
+  "path_scansionata": "$path_home",
+  "durata_scansione": $timestamp,
+  "file_scansionati": $file_tot,
+  "malware_trovati": $count,
+  "scan_status": "$scan_status"
+}
+EOF
+    echo -e " 📁 JSON salvato in: $json_file" | tee -a "$log_file"
+
+    ##mailx -s "📋 REPORT SCANSIONE MS-AV - $date" -a $json_file $INVIO_MAIL
+}
+# ===================================
+# ===================================
+# ===================================
+
+function clean_malware() { ## Pulizia Cartella Quarantena 
+    if [[ $(ls -A $DIRECTORY_QUARANTENA) ]]; then ## Se sono presenti File dentro quarantena eliminali 
+        shred -u $DIRECTORY_QUARANTENA/*
+        echo ""
+        echo "=== Minacce Rimosse ==="
+        echo ""
+    else
+        echo ""
+        echo "=== Nessun Malware Trovato! ==="
+        echo ""
+    fi
+}
+
+function update_signatures() {
+local dir_dest="/etc/av-config/db_firme"
+local clamav_db="/var/lib/clamav"
+local dir_tmp="/tmp/db_unpack"
+# Controlla se esistono
+mkdir -p "$dir_dest"
+mkdir -p "$dir_tmp"
+
+
+rm -f "$dir_dest/*.*"
+
+# aggiorna firme
+echo "Aggiornamento firme..."
+freshclam
+
+# pulisci la cartella temporanea
+rm -f "$dir_tmp/*.*"
+
+# estrai file cvd , cld
+for file in "$clamav_db/main.cvd" "$clamav_db/daily.cld"; do
+    echo "Estrazione di $file..."
+    cp "$file" "$dir_tmp/"
+    (cd "$dir_tmp" && sigtool --unpack "$file")
+done
+
+# copia i file nella destinazione
+cp "$dir_tmp"/*.{hdb,ndb,mdb} "$dir_dest/" 2>/dev/null
+
+curl -v https://bazaar.abuse.ch/export/txt/sha256/recent/ -o /etc/av-config/db_firme/firme_sha256.txt
+echo "==="
+echo "Aggiornamento completato in $dir_tmp: $(date)"
+echo "==="
+rm -rf "$dir_tmp"
+}
+
+show_text() {
+    local title="$1"
+    local content="$2"
+    echo -e "${CYAN}=== $title ===${NC}"
+    echo "$content"
+}
+
+function show_quarantine() {
+    show_text " 🦠 Visualizza Quarantena" "$(ls $DIRECTORY_QUARANTENA)"
+    echo "==="
+
+}
+
+function info() {
+    clear
+    echo "==="
+    echo "🛡️  MS-AV PROJECT v1.0"
+    echo "==="
+    echo "👤 Autore: MagicSale!"
+    echo "💻 Sistema: $(uname -s)"
+    echo "📅 Data: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
+    
+    # Controlla file firme
+    if [[ -f "$PATH_FIRME_MAIN" ]]; then
+        echo "✅ Database Principale: OK"
+        echo "📅 Ultimo Aggiornamento: $(stat -c%y "$PATH_FIRME_MAIN" 2>/dev/null | cut -d. -f1)"
+    else
+        echo "❌ Database Principale: Non trovato"
+    fi
+    
+    if [[ -f "$PATH_FIRME_DAILY" ]]; then
+        echo "✅ Database Giornaliero: OK"
+    else
+        echo "❌ Database Giornaliero: Non trovato"
+    fi
+    
+    echo ""
+    
+    # File in quarantena
+    quarantine_count=$(find "$DIRECTORY_QUARANTENA" -type f 2>/dev/null | wc -l)
+    echo "🦠 File in Quarantena: $quarantine_count"
+    
+    # Log files
+    log_count=$(find "$PATH_LOG" -type f 2>/dev/null | wc -l)
+    echo "📄 File di Log: $log_count"
+    
+    echo ""
+    echo "🔧 Dipendenze:"
+    
+    # Crontab
+    if command -v crontab 2>/dev/null; then
+        echo "✅ Crontab: Installato"
+    else
+        echo "❌ Crontab: Non trovato"
+    fi
+
+    # OpenSSL
+    if command -v openssl 2>/dev/null; then
+        echo "✅ OpenSSL: Installato"
+    else
+        echo "❌ OpenSSL: Non trovato"
+    fi
+    
+    # FreshClam
+    if command -v freshclam 2>/dev/null; then
+        echo "✅ FreshClam: Installato"
+    else
+        echo "❌ FreshClam: Non trovato"
+    fi
+    
+    # SigTool
+    if command -v sigtool 2>/dev/null; then
+        echo "✅ SigTool: Installato"
+    else
+        echo "❌ SigTool: Non trovato"
+    fi
+    
+    echo ""
+    echo "==="
+}
+
+function view_log() {
+    show_text "📄 Visualizza Log" "$(ls $PATH_LOG)" 
+    echo "===="
+}
+
+main() {
+while true; do
+clear
+cat << "BYE" ## menu 
+
+                                                
+    🛡️  MS-AV PROJECT
+    ========================================
+        
+                                            
+    1. 🔍 Scansione Veloce
+    2. 🔎 Scansione Completa (File System)
+    3. 🦠 Visualizza Quarantena                    
+    4. 🗑️ Rimuovi Minacce            
+    5. 📄 Visualizza Log
+    6. 🔄 Aggiorna Firme Malware                      
+    7. ⚙️ Configurazione Automatica
+    8. ℹ️ Info              
+    0. ❌ Esci                                 
+
+
+BYE
+
+
+
+    read -p "$(whoami)@project-av:~$ " choice
+
+    if [[ $choice == 1 ]]; then
+        clear
+        scansione
+        report
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 2 ]]; then
+        clear
+        echo "⚠️ ATTENZIONE: Scansione completa del filesystem in corso..."
+        scansione_completa
+        report
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 3 ]]; then
+        clear
+        show_quarantine
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 4 ]]; then 
+        clear
+        clean_malware
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 5 ]]; then
+        clear
+        view_log
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 6 ]]; then
+        clear
+        update_signatures
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 7 ]]; then
+        clear
+        auto
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 8 ]]; then 
+        clear
+        info
+        read -n 1 -p "Premi un tasto..."
+    elif [[ $choice == 0 ]]; then
+        echo "Bye :)"
+        break
+    else
+        echo "Opzione Invalida!"
+    fi
+done
+}
+
+
+main
