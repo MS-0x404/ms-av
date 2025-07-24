@@ -87,7 +87,7 @@
 
 ```bash
 # Clona la repository
-git clone https://github.com/username/ms-av.git
+git clone https://github.com/MS-0x404/ms-av.git
 cd ms-av
 
 # Esegui l'installer automatico
