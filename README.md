@@ -366,7 +366,7 @@ di questo software per usarlo senza restrizioni...
 
 ## 🙏 Ringraziamenti
 
-- **ClamAV Team** - Per il potente engine antivirus
+- **ClamAV Team** - Per il database MD5 delle minacce
 - **Abuse.ch** - Per il database SHA256 delle minacce
 - **Linux Community** - Per il supporto e feedback
 - **Istituto InfoBasic** - Per l'opportunità di sviluppo
