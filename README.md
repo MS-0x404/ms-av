@@ -1,8 +1,10 @@
 # 🛡️ MS-AV - Antivirus Linux
 
 <div align="center">
+<img width="1024" height="1024" alt="ChatGPT Image Jul 24, 2025, 08_05_48 AM" src="https://github.com/user-attachments/assets/b80cf0c1-e9b6-4438-9b03-a90fc103a550" />
 
-![MS-AV Logo](![Uploading ChatGPT Image Jul 24, 2025, 08_05_48 AM.png…]())
+![MS-AV Logo]![Uploading ChatGPT Image Jul 24, 2025, 08_05_48 AM.png…]()
+
 ![Platform](https://img.shields.io/badge/Platform-Linux-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)
