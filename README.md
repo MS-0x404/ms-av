@@ -1,7 +1,6 @@
 # 🛡️ MS-AV - Antivirus Linux
 
 <div align="center">
-<img width="1024" height="1024" alt="ChatGPT Image Jul 24, 2025, 08_05_48 AM" src="https://github.com/user-attachments/assets/b80cf0c1-e9b6-4438-9b03-a90fc103a550" />
 
 ![MS-AV Logo](<img width="1024" height="1024" alt="ChatGPT Image Jul 24, 2025, 08_05_48 AM" src="https://github.com/user-attachments/assets/b80cf0c1-e9b6-4438-9b03-a90fc103a550" />)
 
