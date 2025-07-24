@@ -295,7 +295,7 @@ PATH_DA_ESCLUDERE=("/proc" "/sys" "/dev" "/tmp" "/var/cache")
 Per problemi avanzati, consulta i log:
 ```bash
 # Log di sistema
-tail -f /var/log/ms-av/
+tail -f /var/log/av-logs/
 
 # Log ClamAV
 tail -f /var/log/clamav/
