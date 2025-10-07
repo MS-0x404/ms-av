@@ -332,22 +332,18 @@ Contribuzioni sono benvenute! Per contribuire:
 - ✅ Rilevamento euristico
 
 ### Roadmap v1.1.0
-- 🔄 Interfaccia web dashboard
-- 🔄 API REST per integrazione
-- 🔄 Supporto database personalizzati
-- 🔄 Scansione in tempo reale
-- 🔄 Plugin system
+- 🔄 Coming Soon
 
 ---
 
 ## 👨‍💻 Autore
 
-**MagicSale!** - *Progetto finale Istituto InfoBasic*
+**msfire!** - *Progetto finale Istituto InfoBasic*
 
 - 📧 Email: [matteosalis04@ik.me](mailto:matteosalis04@ik.me)
 - 🔐 PGP: 0xDC923909E7DF5D5A
 - 🌐 GitHub: [@MS-0X404](https://github.com/MS-0x404)
-- 💼 LinkedIn: [MagicSale](https://linkedin.com/in/matteosalis04)
+- 💼 LinkedIn: [msfire](https://linkedin.com/in/matteosalis04)
 
 ---
 
@@ -356,7 +352,7 @@ Contribuzioni sono benvenute! Per contribuire:
 Questo progetto è distribuito sotto licenza **MIT**. Vedi il file [LICENSE](LICENSE) per maggiori dettagli.
 
 ```
-MIT License - Copyright (c) 2025 MagicSale!
+MIT License - Copyright (c) 2025 msfire!
 
 Permesso concesso gratuitamente a chiunque ottenga una copia
 di questo software per usarlo senza restrizioni...
