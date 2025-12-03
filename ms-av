@@ -2,7 +2,7 @@
 #############################################################
 # MS-AV
 # Autore: MagicSale!
-# Versione: 1.0 
+# Versione: 2.0 
 #############################################################
 
 ## File di configurazione 
@@ -15,11 +15,26 @@ if [[ $EUID != 0 ]]; then
     exit 1
 fi
 
+
 mkdir -p "$DIRECTORY_QUARANTENA" ## crea la cartella quarantena se non esiste gia
 mkdir -p "$PATH_LOG" ## crea la cartella log se non esiste già 
-hash_firme1=$(cat $PATH_FIRME_MAIN | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima 
-hash_firme2=$(cat $PATH_FIRME_DAILY | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
-hash_firme3=$(cat $PATH_FIRME_SHA | awk '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+
+# Aggiungi EXPORT davanti alle variabili per passarle ai worker
+export PATH_FIRME_MAIN
+export PATH_FIRME_DAILY
+export PATH_FIRME_SHA
+export DIRECTORY_QUARANTENA
+
+# 2. Convertiamo gli ARRAY di esclusione in REGEX (Stringhe)
+# Questo serve perché gli ARRAY non passano ai processi paralleli, ma le stringhe sì.
+# Esempio: diventa "log|tmp|cache|lock"
+regex_ext=$(printf "|%s" "${ESTENSIONI_DA_ESCLUDERE[@]}")
+export EXCLUDE_EXT_REGEX="${regex_ext:1}" # Rimuove il primo pipe |
+
+# Esempio: diventa "/proc|/sys|/dev"
+regex_path=$(printf "|%s" "${PATH_DA_ESCLUDERE[@]}")
+export EXCLUDE_PATH_REGEX="${regex_path:1}"
+
 
 count=0
 file_tot=0
@@ -38,146 +53,104 @@ function euristica() {
         echo "============================"
     fi
 }
+export -f euristica
 
+function worker_scan() {
+    local file="$1"
+    
+    # === 1. CHECK ESCLUSIONI (Velocissimo) ===
+    # Se il file ha un'estensione esclusa -> Salta
+    if [[ "$file" =~ \.($EXCLUDE_EXT_REGEX)$ ]]; then
+        return
+    fi
+    
+    # Se il file è in un percorso escluso -> Salta
+    if [[ "$file" =~ ($EXCLUDE_PATH_REGEX) ]]; then
+        return
+    fi
+
+    # === 2. CALCOLO HASH ===
+    local scan_md5=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}')
+    local scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
+    
+    local infetto=0
+
+    # === 3. CONTROLLO FIRME ===
+    # Main DB (MD5)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_md5:" "$PATH_FIRME_MAIN" 2>/dev/null; then
+        infetto=1
+    fi
+    # Daily DB (MD5)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_md5:" "$PATH_FIRME_DAILY" 2>/dev/null; then
+        infetto=1
+    fi
+    # Abuse.ch DB (SHA256)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_sha" "$PATH_FIRME_SHA" 2>/dev/null; then
+        infetto=1
+    fi
+
+    # === 4. AZIONI ===
+    if [[ $infetto -eq 1 ]]; then
+        mv "$file" "$DIRECTORY_QUARANTENA" 2>/dev/null
+        echo "MALWARE_FOUND:$file"
+    else
+        # Se non è infetto per hash, prova l'euristica
+        euristica "$file"
+    fi
+}
+export -f worker_scan
+
+
+function run_parallel_scan() {
+    local target_path="$1"
+    
+    if [[ ! -d "$target_path" ]]; then
+        echo "Errore: Directory non valida ($target_path)"
+        return
+    fi
+
+    path_home="$target_path" # Per il report finale
+    echo "Avvio Scansione... $target_path"
+    time_start=$(date +%s)
+    
+    # FIX: Contiamo i file PRIMA di lanciare xargs
+    file_tot=$(find "$target_path" -type f 2>/dev/null | wc -l)
+    
+    # File temporaneo per i risultati
+    tmp_results=$(mktemp)
+
+    cores=$(nproc)
+    if [[ $cores -gt 1 ]]; then cores=$(($cores - 1)); fi
+    
+    # MAGIC LINE: xargs lancia worker_scan su tutti i core della CPU
+    find "$target_path" -type f -print0 | xargs -0 -P $cores -I {} bash -c 'worker_scan "$@"' _ "{}" >> "$tmp_results"
+
+    # Conta Malware (Hash) + Euristica
+    count=$(grep -cE "(MALWARE_FOUND|HEURISTIC_FOUND)" "$tmp_results")
+    
+    if [[ $count -gt 0 ]]; then
+        echo -e "\n=== 🦠 Minacce Rilevate: $count ==="
+        # Mostra dettagli puliti
+        grep "MALWARE_FOUND" "$tmp_results" | cut -d":" -f2 | sed 's/^/[HASH] /'
+        grep "HEURISTIC_FOUND" "$tmp_results" | cut -d":" -f2 | sed 's/^/[HEUR] /'
+        echo "============================"
+    else
+        echo -e "\n✅ Nessuna Minaccia Rilevata."
+    fi
+
+    rm -f "$tmp_results"
+    time_end=$(date +%s)
+}
 
 function scansione() {
-    i=0
-    spinner="/-\|"
-    read -p "Inserisci percorso da scansionare: " path_home 
-    if [[ -d $path_home ]]; then
-        echo "Avvio Scansione..."
-    else
-        echo "==="
-        echo "=== Errore: inserisci una directory ==="
-        echo "==="
-        exit 1
-    fi
-    all_files=($(find "$path_home" -type f))
-    time_start=$(date +%s)
-    total_files=${#all_files[@]}
-    for file in "${all_files[@]}"; do 
-        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *.$ext ]]; then
-                continue 2 
-            fi
-        done
-        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *"$path_escluso"* ]]; then
-                continue 2 
-            fi
-        done
-
-        ((file_tot++))
-        infetto=0
-
-        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') # Prende l'hash md5 del file controllato        
-        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
-        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme1"
-        while read -r line && [[ $infetto == 0 ]]; do
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme2"
-
-
-
-        if [[ $infetto == 0 ]]; then
-            euristica "$file"
-        fi
-
-
-        if [[ $infetto == 1 ]]; then
-            echo "\n"
-            echo "=== 🦠 Malware Rilevato ==="
-            echo ===[INFETTO] $(basename "$file") ===
-            echo "============================"
-        else 
-            printf "\r[%c] Scansione in corso..." "${spinner:i++%4:1}"
-            #echo [SICURO] "$file"
-        fi
-    done
-
-    time_end=$(date +%s)
-
+    read -p "Inserisci percorso da scansionare: " input_path
+    run_parallel_scan "$input_path"
+    
 }
 
 function scansione_completa() {
-    i=0
-    spinner="/-\|"
-    path_tot="/"
-    all_files=($(find "$path_tot" -type f 2>/dev/null))
-    time_start=$(date +%s)
-    total_files=${#all_files[@]}
-    for file in "${all_files[@]}"; do 
-        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *.$ext ]]; then
-                continue 2 
-            fi
-        done
-        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *"$path_escluso"* ]]; then
-                continue 2 
-            fi
-        done
-
-        ((file_tot++))
-        infetto=0
-
-        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') # Prende l'hash md5 del file controllato
-        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
-        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme1"
-        while read -r line && [[ $infetto == 0 ]]; do
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme2"
-        while read -r line && [[ $infetto == 0 ]]; do
-            if [[ "$scan_sha" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme3"
-
-
-        if [[ $infetto == 0 ]]; then
-            euristica "$file"
-        fi
-
-
-        if [[ $infetto == 1 ]]; then
-            echo "\n"
-            echo "=== 🦠 Malware Rilevato ==="
-            echo ===[INFETTO] $(basename "$file") ===
-            echo "============================"
-        else 
-            printf "\r[%c] Scansione in corso..." "${spinner:i++%4:1}"
-            #echo [SICURO] "$file"
-        fi
-    done
-
-    time_end=$(date +%s)
+    run_parallel_scan "/"
+    
 }
 
 function cronjob() {
@@ -190,6 +163,10 @@ if [ $? -ne 0 ]; then
   echo "[INFO] Cron job installato."
 else
   echo "[INFO] Cron job già presente."
+    path_home="$target_path" # Per il report finale
+    echo "Avvio Scansione... $target_path"
+    time_start=$(date +%s)
+
 fi
 }
 
@@ -220,10 +197,19 @@ fi
 
 mkdir -p "$DIRECTORY_QUARANTENA" ## crea la cartella quarantena se non esiste gia 
 mkdir -p "$PATH_LOG"
-all_files=($(find "/home/$UTENTE_ABILITATO_AL_DOWNLOAD" -type f)) 
-hash_firme1=$(cat $PATH_FIRME_MAIN | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima 
-hash_firme2=$(cat $PATH_FIRME_DAILY | awk -F":" '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
-hash_firme3=$(cat $PATH_FIRME_SHA | awk '{print $1}') ## Separa ogni colonna con ":" e prende solo la prima
+
+export PATH_FIRME_MAIN
+export PATH_FIRME_DAILY
+export PATH_FIRME_SHA
+export DIRECTORY_QUARANTENA
+
+regex_ext=$(printf "|%s" "${ESTENSIONI_DA_ESCLUDERE[@]}")
+export EXCLUDE_EXT_REGEX="${regex_ext:1}" # Rimuove il primo pipe |
+
+# Esempio: diventa "/proc|/sys|/dev"
+regex_path=$(printf "|%s" "${PATH_DA_ESCLUDERE[@]}")
+export EXCLUDE_PATH_REGEX="${regex_path:1}"
+
 
 sospetto=0
 count=0
@@ -279,62 +265,98 @@ function euristica() {
     fi
 }
 
+function worker_scan() {
+    local file="$1"
+    
+    # === 1. CHECK ESCLUSIONI (Velocissimo) ===
+    # Se il file ha un'estensione esclusa -> Salta
+    if [[ "$file" =~ \.($EXCLUDE_EXT_REGEX)$ ]]; then
+        return
+    fi
+    
+    # Se il file è in un percorso escluso -> Salta
+    if [[ "$file" =~ ($EXCLUDE_PATH_REGEX) ]]; then
+        return
+    fi
+
+    # === 2. CALCOLO HASH ===
+    local scan_md5=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}')
+    local scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
+    
+    local infetto=0
+
+    # === 3. CONTROLLO FIRME ===
+    # Main DB (MD5)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_md5:" "$PATH_FIRME_MAIN" 2>/dev/null; then
+        infetto=1
+    fi
+    # Daily DB (MD5)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_md5:" "$PATH_FIRME_DAILY" 2>/dev/null; then
+        infetto=1
+    fi
+    # Abuse.ch DB (SHA256)
+    if [[ $infetto -eq 0 ]] && grep -F -q "$scan_sha" "$PATH_FIRME_SHA" 2>/dev/null; then
+        infetto=1
+    fi
+
+    # === 4. AZIONI ===
+    if [[ $infetto -eq 1 ]]; then
+        mv "$file" "$DIRECTORY_QUARANTENA" 2>/dev/null
+        echo "MALWARE_FOUND:$file"
+    else
+        # Se non è infetto per hash, prova l'euristica
+        euristica "$file"
+    fi
+}
+export -f worker_scan
+
+
+function run_parallel_scan() {
+    local target_path="$1"
+    
+    if [[ ! -d "$target_path" ]]; then
+        echo "Errore: Directory non valida ($target_path)"
+        return
+    fi
+
+    path_home="$target_path" # Per il report finale
+    echo "Avvio Scansione... $target_path"
+    time_start=$(date +%s)
+    
+    # FIX: Contiamo i file PRIMA di lanciare xargs
+    file_tot=$(find "$target_path" -type f 2>/dev/null | wc -l)
+    
+    # File temporaneo per i risultati
+    tmp_results=$(mktemp)
+
+    cores=$(nproc)
+    if [[ $cores -gt 1 ]]; then cores=$(($cores - 1)); fi
+    
+    # MAGIC LINE: xargs lancia worker_scan su tutti i core della CPU
+    find "$target_path" -type f -print0 | xargs -0 -P $cores -I {} bash -c 'worker_scan "$@"' _ "{}" >> "$tmp_results"
+
+    # Conta Malware (Hash) + Euristica
+    count=$(grep -cE "(MALWARE_FOUND|HEURISTIC_FOUND)" "$tmp_results")
+    
+    if [[ $count -gt 0 ]]; then
+        echo -e "\n=== 🦠 Minacce Rilevate: $count ==="
+        # Mostra dettagli puliti
+        grep "MALWARE_FOUND" "$tmp_results" | cut -d":" -f2 | sed 's/^/[HASH] /'
+        grep "HEURISTIC_FOUND" "$tmp_results" | cut -d":" -f2 | sed 's/^/[HEUR] /'
+        echo "============================"
+    else
+        echo -e "\n✅ Nessuna Minaccia Rilevata."
+    fi
+
+    rm -f "$tmp_results"
+    time_end=$(date +%s)
+}
 
 function scansione() {
-    time_start=$(date +%s)
-    total_files=${#all_files[@]}
-    for file in "${all_files[@]}"; do 
-        for ext in "${ESTENSIONI_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *.$ext ]]; then
-                continue 2 
-            fi
-        done
-        for path_escluso in "${PATH_DA_ESCLUDERE[@]}"; do
-            if [[ "$file" == *"$path_escluso"* ]]; then
-                continue 2 
-            fi
-        done
-
-        ((file_tot++))
-        infetto=0
-
-        scan=$(openssl dgst -md5 "$file" 2>/dev/null | awk '{print $2}') 
-        scan_sha=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $2}')
-        while read -r line && [[ $infetto == 0 ]];  do  ## Legge ogni singola riga del file $file_firme
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme1"
-        while read -r line && [[ $infetto == 0 ]]; do
-            if [[ "$scan" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme2"
-        while read -r line && [[ $infetto == 0 ]]; do
-            if [[ "$scan_sha" == "$line" ]]; then ## Confronta il file controllato con il file delle firme
-                ((count++))
-                infetto=1 
-                [[ -f "$file" ]] && mv "$file" "$DIRECTORY_QUARANTENA" # Sposta in quarantena
-                break
-            fi
-        done <<< "$hash_firme3"
-
-        if [[ $infetto == 0 ]]; then
-            euristica "$file"
-        fi
-
-
-    done
-
-    time_end=$(date +%s)
-
+    run_parallel_scan "/home/$UTENTE_ABILITATO_AL_DOWNLOAD"
+    
 }
+
 function report() {
     timestamp=$(($time_end - $time_start))
     date=$(date +%Y-%m-%d_%H:%M:%S)
@@ -412,7 +434,6 @@ fi
 # =================================
 function report() {
     echo "\n"
-    notify-send "MS-AV Report" "Malware Trovati: $count"
     timestamp=$(($time_end - $time_start))
     date=$(date +%Y-%m-%d_%H:%M:%S)
     log_file="$PATH_LOG/report-scansione-$date.log"
@@ -527,9 +548,10 @@ function show_quarantine() {
 function info() {
     clear
     echo "==="
-    echo "🛡️  MS-AV PROJECT v1.0"
+    echo "🛡️  MS-AV PROJECT v2.0"
     echo "==="
     echo "👤 Autore: MagicSale!"
+    echo "⚙️ Engine: Parallel Multi-Core + Heuristics"
     echo "💻 Sistema: $(uname -s)"
     echo "📅 Data: $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
@@ -670,4 +692,7 @@ done
 }
 
 
-main
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+
