@@ -331,9 +331,6 @@ Contribuzioni sono benvenute! Per contribuire:
 - ✅ Scansione automatica
 - ✅ Rilevamento euristico
 
-### Roadmap v1.1.0
-- 🔄 Coming Soon
-
 ---
 
 ## 👨‍💻 Autore
