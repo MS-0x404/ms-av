@@ -339,7 +339,7 @@ Contribuzioni sono benvenute! Per contribuire:
 
 - 📧 Email: [matteosalis04@ik.me](mailto:matteosalis04@ik.me)
 - 🔐 PGP: 0xDC923909E7DF5D5A
-- 💼 LinkedIn: [msfire](https://linkedin.com/in/matteosalis04)
+- 💼 LinkedIn: [msfire](https://linkedin.com/in/matteo-salis-495145364/)
 
 ---
 
