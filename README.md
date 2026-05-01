@@ -337,8 +337,8 @@ Contribuzioni sono benvenute! Per contribuire:
 
 **msfire!** - *Progetto finale Istituto InfoBasic*
 
-- 📧 Email: [matteosalis04@ik.me](mailto:matteosalis04@ik.me)
-- 🔐 PGP: 0xDC923909E7DF5D5A
+- 📧 Email: [matteosalis04@gmail.com](mailto:matteosalis04@gmail.com)
+- 🔐 PGP: 0x8F50E1A4E3771619
 - 💼 LinkedIn: [msfire](https://linkedin.com/in/matteo-salis-495145364/)
 
 ---
